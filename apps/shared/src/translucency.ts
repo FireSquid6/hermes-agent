@@ -250,6 +250,7 @@ export function normalizeMode(
   if (backgroundSupported) {
     return value === 'background' ? 'background' : 'clear'
   }
+
   if (!glassSupported) {
     return 'clear'
   }
@@ -426,6 +427,7 @@ export function windowOpacityFor(state: TranslucencyState): number {
   if (state.mode === 'background') {
     return 1
   }
+
   if (state.mode !== 'glass') {
     return opacityRamp(state.intensity)
   }
