@@ -331,10 +331,9 @@ describe('translucencySupportedOn', () => {
     expect(translucencySupportedOn('win32')).toBe(true)
   })
 
-  // Electron documents setOpacity as doing nothing on Linux, and there is no
-  // material either — so the setting has no working half to offer there.
-  it('is off on Linux, where neither mode does anything', () => {
-    expect(translucencySupportedOn('linux')).toBe(false)
+  // Linux offers background alpha, not native frost or whole-window fading.
+  it('offers background transparency on Linux but not unknown platforms', () => {
+    expect(translucencySupportedOn('linux')).toBe(true)
     expect(translucencySupportedOn('freebsd')).toBe(false)
   })
 })

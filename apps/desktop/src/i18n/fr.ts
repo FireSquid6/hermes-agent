@@ -1043,6 +1043,9 @@ export const frOverrides = {
       translucencyGlassDesc:
         'Verre mat : le bureau reste visible à travers un flou uniforme tandis que le texte demeure net. macOS uniquement.',
       translucencyModeClear: 'Transparent',
+      backgroundTransparencyTitle: 'Transparence du fond',
+      backgroundTransparencyDesc:
+        'Seul le fond devient transparent ; le texte et les commandes restent opaques. Un compositeur compatible est requis. Le flou est géré par le compositeur Linux.',
       translucencyModeGlass: 'Verre',
       translucencyTintTitle: 'Teinte',
       translucencyFadeTitle: 'Atténuation',

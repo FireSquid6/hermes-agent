@@ -588,7 +588,9 @@ import { terminalGatewayTarget } from './terminal-gateway-target'
 import { registerTerminalIpc } from './terminal-ipc'
 import { applyTitleBarOverlay, isHexColor, nativeOverlayWidth, titleBarOverlayOptions } from './titlebar-overlay-width'
 import {
+  applyChatWindowBacking,
   applyWindowsBackdrop,
+  backgroundTransparencySupportedOn,
   defaultTranslucencyState,
   glassActive,
   glassSupportedOn,
@@ -788,8 +790,10 @@ const DARWIN_MAJOR = IS_MAC ? Number.parseInt(os.release(), 10) || 0 : 0
 // Glass: macOS vibrancy, or Windows 11 22H2+ system backdrop. Computed once
 // so the renderer, the persisted default, and every chat window agree.
 const GLASS_SUPPORTED = glassSupportedOn(process.platform, os.release())
-// Settings drops the row on Linux, so nativeOpacityFor keeps the fade off there.
+// Linux offers background alpha but must never fade text through native opacity.
 const TRANSLUCENCY_SUPPORTED = translucencySupportedOn(process.platform)
+const BACKGROUND_TRANSPARENCY_SUPPORTED = backgroundTransparencySupportedOn(process.platform)
+const NATIVE_OPACITY_SUPPORTED = IS_MAC || IS_WINDOWS
 const APP_ROOT = app.getAppPath()
 
 // Device-local preference: block F12 from opening DevTools.
@@ -1471,19 +1475,29 @@ nativeTheme.themeSource = readPersistedThemeSource()
 // — a matte blur with full-contrast text. macOS uses vibrancy; Windows 11
 // uses DWM acrylic/mica/tabbed. Persisted so a cold launch applies it at
 // window creation, before the renderer reports its value.
-// macOS + Windows only, gated at the value itself (see nativeOpacityFor).
+// Linux adds opt-in background alpha, never native whole-window fading.
 const TRANSLUCENCY_CONFIG_PATH = path.join(app.getPath('userData'), 'translucency.json')
 
 function readPersistedTranslucency() {
   try {
-    return normalizeTranslucency(JSON.parse(fs.readFileSync(TRANSLUCENCY_CONFIG_PATH, 'utf8')), GLASS_SUPPORTED)
+    return normalizeTranslucency(
+      JSON.parse(fs.readFileSync(TRANSLUCENCY_CONFIG_PATH, 'utf8')),
+      GLASS_SUPPORTED,
+      BACKGROUND_TRANSPARENCY_SUPPORTED
+    )
   } catch {
     // Nothing persisted yet — a first launch. Glass ships on, so the FIRST
     // window has to be created with the glass backing already: a window born
     // opaque cannot reliably be swapped to glass afterwards (see
     // windowBackingOptions). nativeTheme is the only appearance signal main
     // has this early; the renderer's first resolved send corrects it.
-    return defaultTranslucencyState(nativeTheme.shouldUseDarkColors ? 'dark' : 'light', GLASS_SUPPORTED, IS_WINDOWS)
+    const state = defaultTranslucencyState(
+      nativeTheme.shouldUseDarkColors ? 'dark' : 'light',
+      GLASS_SUPPORTED,
+      IS_WINDOWS
+    )
+
+    return BACKGROUND_TRANSPARENCY_SUPPORTED ? { ...state, intensity: 0, fade: 0 } : state
   }
 }
 
@@ -1509,7 +1523,7 @@ const translucencyBackedWindows = new WeakSet()
 // window's own opacity is the record of whether that door was ever opened; see
 // opacityNeedsSetting for why it matters that it stays shut.
 function applyWindowOpacity(win) {
-  const opacity = nativeOpacityFor(translucencyState, TRANSLUCENCY_SUPPORTED)
+  const opacity = nativeOpacityFor(translucencyState, NATIVE_OPACITY_SUPPORTED)
 
   if (typeof win.setOpacity === 'function' && opacityNeedsSetting(opacity, win.getOpacity?.() ?? 1)) {
     win.setOpacity(opacity)
@@ -1554,7 +1568,7 @@ function applyWindowTranslucency(win, changed = { backing: true, material: true,
         applyWindowsBackdrop(win, translucencyState, changed, getWindowBackgroundColor())
       } else {
         if (changed.backing && typeof win.setBackgroundColor === 'function') {
-          win.setBackgroundColor(glassActive(translucencyState) ? '#00000000' : getWindowBackgroundColor())
+          applyChatWindowBacking(win, translucencyState, getWindowBackgroundColor(), process.platform)
         }
 
         // Animate deliberate macOS frost changes, not unrelated tint updates.
@@ -1609,8 +1623,8 @@ function chatWindowSurfaceOptions() {
     // RESIZABLE transparent window is unsupported and breaks (electron#48421).
     // Every chat window is resizable.
     ...windowBackgroundMaterialOptions(translucencyState, IS_WINDOWS, GLASS_SUPPORTED),
-    ...windowOpacityOptions(translucencyState, TRANSLUCENCY_SUPPORTED),
-    ...windowBackingOptions(translucencyState, getWindowBackgroundColor())
+    ...windowOpacityOptions(translucencyState, NATIVE_OPACITY_SUPPORTED),
+    ...windowBackingOptions(translucencyState, getWindowBackgroundColor(), process.platform)
   }
 }
 
@@ -16439,7 +16453,11 @@ app.on('quit', () => {
 // renderer's first script — see the note there on why it cannot decide this
 // itself. Registered at module scope, which runs long before any window.
 ipcMain.on('hermes:translucency:support', event => {
-  event.returnValue = { glass: GLASS_SUPPORTED, translucency: TRANSLUCENCY_SUPPORTED }
+  event.returnValue = {
+    glass: GLASS_SUPPORTED,
+    translucency: TRANSLUCENCY_SUPPORTED,
+    background: BACKGROUND_TRANSPARENCY_SUPPORTED
+  }
 })
 
 // Feature-flag facts the renderer needs before first paint (same sendSync
@@ -16462,7 +16480,7 @@ ipcMain.on('hermes:feature-flags', (event: IpcMainEvent): void => {
 })
 
 ipcMain.on('hermes:translucency', (_event, payload) => {
-  const next = normalizeTranslucency(payload, GLASS_SUPPORTED)
+  const next = normalizeTranslucency(payload, GLASS_SUPPORTED, BACKGROUND_TRANSPARENCY_SUPPORTED)
   const previous = translucencyState
 
   if (

@@ -1,10 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest'
 
-// Linux, as the preload bridge reports it: neither glass nor translucency.
-// Pinned before the store module evaluates (hoisted above the imports) so
-// TRANSLUCENCY_SUPPORTED resolves false, and the bridge records every state
-// the renderer hands main.
 const sent = vi.hoisted(() => {
   const calls: unknown[] = []
 
@@ -13,7 +9,8 @@ const sent = vi.hoisted(() => {
     configurable: true,
     value: {
       glassSupported: false,
-      translucencySupported: false,
+      backgroundTransparencySupported: true,
+      translucencySupported: true,
       setTranslucency: (state: unknown) => calls.push(state)
     }
   })
@@ -23,22 +20,49 @@ const sent = vi.hoisted(() => {
 
 import { type TranslucencyState, windowOpacityFor } from '@hermes/shared/translucency'
 
-import { $translucency, setTranslucency, TRANSLUCENCY_SUPPORTED } from './translucency'
+import { readJson, writeJson } from '@/lib/storage'
 
-// Settings hides the row on Linux, so nothing the store resolves may fade the
-// window: not the 29% platform default an untouched profile lands on, and not
-// a value that arrives from anywhere else.
-describe('translucency where Settings hides the row', () => {
-  it('resolves to an opaque window and tells main exactly that', () => {
-    expect(TRANSLUCENCY_SUPPORTED).toBe(false)
+import {
+  $translucency,
+  setTranslucency,
+  setTranslucencyFade,
+  setTranslucencyMode,
+  TRANSLUCENCY_SUPPORTED
+} from './translucency'
 
-    setTranslucency(60)
+const initial = $translucency.get()
+const key = 'hermes.desktop.translucency.v2'
 
-    for (const state of [$translucency.get(), ...(sent as TranslucencyState[])]) {
-      expect(windowOpacityFor(state)).toBe(1)
+describe('Linux background transparency', () => {
+  it('requires explicit opt-in and paints only the background, persisting the choice', () => {
+    vi.useFakeTimers()
+
+    try {
+      expect(TRANSLUCENCY_SUPPORTED).toBe(true)
+      expect(initial.intensity).toBe(0)
+      setTranslucency(60)
+      expect($translucency.get().intensity).toBe(0)
+      setTranslucencyMode('background')
+      setTranslucencyFade(90)
+      expect($translucency.get()).toMatchObject({ mode: 'background', intensity: 60, fade: 0 })
+      expect(document.documentElement.hasAttribute('data-hermes-background')).toBe(true)
+      expect(document.documentElement.hasAttribute('data-hermes-glass')).toBe(true)
+      expect(document.documentElement.hasAttribute('data-hermes-glass-on')).toBe(false)
+      expect(document.documentElement.hasAttribute('data-hermes-clear')).toBe(false)
+      expect(document.documentElement.style.getPropertyValue('--translucency-glass-keep')).toBe('40%')
+      vi.advanceTimersByTime(200)
+      expect(readJson(key)).toMatchObject({ mode: 'background', dark: { intensity: 60 } })
+
+      for (const state of sent as TranslucencyState[]) {expect(windowOpacityFor(state)).toBe(1)}
+      writeJson(key, { mode: 'background', dark: { intensity: 42, fade: 100, scope: 'window' } })
+      window.dispatchEvent(new StorageEvent('storage', { key }))
+      expect($translucency.get()).toMatchObject({ mode: 'background', intensity: 42, fade: 0, scope: 'window' })
+      expect(document.documentElement.style.getPropertyValue('--translucency-glass-keep')).toBe('58%')
+      setTranslucencyMode('clear')
+      expect($translucency.get().intensity).toBe(0)
+      expect(document.documentElement.hasAttribute('data-hermes-glass')).toBe(false)
+    } finally {
+      vi.useRealTimers()
     }
-
-    expect(sent.length).toBeGreaterThan(0)
-    expect(document.documentElement.hasAttribute('data-hermes-clear')).toBe(false)
   })
 })

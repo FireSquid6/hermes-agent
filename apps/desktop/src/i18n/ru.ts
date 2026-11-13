@@ -529,6 +529,9 @@ export const ruOverrides = {
       translucencyGlassDesc:
         'Матовое стекло: рабочий стол виден как плавное размытие, а текст остаётся чётким. Отдельная настройка для светлой и тёмной тем.',
       translucencyModeClear: 'Прозрачная',
+      backgroundTransparencyTitle: 'Прозрачность фона',
+      backgroundTransparencyDesc:
+        'Прозрачным становится только фон; текст и элементы управления остаются непрозрачными. Нужна поддержка композитора. Размытие настраивается в композиторе Linux.',
       translucencyModeGlass: 'Стекло',
       translucencyTintTitle: 'Тон',
       translucencyFadeTitle: 'Затухание',

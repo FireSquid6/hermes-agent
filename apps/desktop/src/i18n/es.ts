@@ -1040,6 +1040,9 @@ export const esOverrides = {
       translucencyGlassDesc:
         'Vidrio mate: el escritorio se ve a través con un desenfoque suave mientras el texto se mantiene nítido. Ajustado por separado para claro y oscuro.',
       translucencyModeClear: 'Transparente',
+      backgroundTransparencyTitle: 'Transparencia del fondo',
+      backgroundTransparencyDesc:
+        'Solo el fondo se vuelve transparente; el texto y los controles permanecen opacos. Requiere un compositor compatible. El desenfoque depende del compositor de Linux.',
       translucencyModeGlass: 'Vidrio',
       translucencyTintTitle: 'Tinte',
       translucencyFadeTitle: 'Atenuación',

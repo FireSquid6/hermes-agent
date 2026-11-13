@@ -145,6 +145,16 @@ changing defaults must not overwrite a user's existing choices. The shared
 `apps/shared/src/translucency.ts` resolver owns these defaults for both the
 renderer and Electron's first window paint.
 
+Linux instead offers **Background transparency**, off until explicitly enabled.
+Only the background tint thins; text and controls never fade. Tint and area are
+available, but native Frost and Fade are not. The same single-painter CSS
+contract is reused without claiming a native blur material. Compositor support
+is required; blur, if desired and supported, is configured in the Linux
+compositor. Primary, profile/instance peers, and secondary chat windows all
+start with alpha-capable backing and native opacity 1, even while the opaque
+page paints the off state. They remain hidden until the existing first-paint
+reveal gate; runtime theme/setting changes must never restore an opaque backing.
+
 ## Stroke & color tokens
 
 | Token | Use |

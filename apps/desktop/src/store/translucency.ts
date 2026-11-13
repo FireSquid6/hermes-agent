@@ -76,16 +76,18 @@ export const GLASS_SUPPORTED =
     ? window.hermesDesktop.glassSupported
     : isMacPlatform() || isWindowsPlatform())
 
-/**
- * Whether the setting is offered at all. Linux has no native material and
- * Settings hides the row there, so the setting also resolves to off there
- * (see `$translucency`): a hidden lever must not move the window.
- */
+/** Whether Electron offers any see-through mode (including Linux background alpha). */
 export const TRANSLUCENCY_SUPPORTED =
   hostHas('windowMaterial') &&
   (typeof window !== 'undefined' && typeof window.hermesDesktop?.translucencySupported === 'boolean'
     ? window.hermesDesktop.translucencySupported
     : isMacPlatform() || isWindowsPlatform())
+
+/** Background alpha is an Electron fact, not a Linux browser UA inference. */
+export const BACKGROUND_TRANSPARENCY_SUPPORTED =
+  hostHas('windowMaterial') &&
+  typeof window !== 'undefined' &&
+  window.hermesDesktop?.backgroundTransparencySupported === true
 
 /** Windows collapses the frost ladder — see `glassMaterialsFor`. */
 export const GLASS_IS_WINDOWS = GLASS_SUPPORTED && !isMacPlatform()
@@ -102,16 +104,28 @@ const LEGACY_KEY = 'hermes.desktop.translucency.v1'
 // seed it into the machine's shared store over native's tuned glass (#145536).
 if (typeof window !== 'undefined') {
   const stored = readKey(KEY)
+  const payload = readJson<unknown>(KEY)
 
-  const book = JSON.stringify(normalizeBook(readJson<unknown>(KEY), true))
+  const explicitBackground =
+    payload && typeof payload === 'object' && 'mode' in payload && payload.mode === 'background'
 
-  if (stored !== null && [true, false].some(glass => book === JSON.stringify(normalizeBook(null, glass)))) {
+  const book = JSON.stringify(normalizeBook(payload, true))
+
+  if (
+    stored !== null &&
+    !explicitBackground &&
+    [true, false].some(glass => book === JSON.stringify(normalizeBook(null, glass)))
+  ) {
     writeKey(KEY, stored, { isDefault: true, provisional: true })
   }
 }
 
 const read = (): TranslucencyBook =>
-  normalizeBook(readJson<unknown>(KEY) ?? readJson<unknown>(LEGACY_KEY), GLASS_SUPPORTED)
+  normalizeBook(
+    readJson<unknown>(KEY) ?? readJson<unknown>(LEGACY_KEY),
+    GLASS_SUPPORTED,
+    BACKGROUND_TRANSPARENCY_SUPPORTED
+  )
 
 /** The persisted book. Settings edits it; everything else reads `$translucency`. */
 export const $translucencyBook = atom<TranslucencyBook>(
@@ -134,14 +148,16 @@ export function setAppearance(appearance: Appearance): void {
 /**
  * The resolved state for the painted appearance — the shape every consumer reads.
  *
- * Where Settings hides the row, the setting resolves to off. The platform
- * defaults (29% tint) would otherwise still resolve there, reach main over IPC
- * and land in translucency.json, and Electron 44 does fade a Linux window when
- * handed that value. Resolving to off also rewrites a value an earlier build
- * persisted, so a stuck profile heals on its first launch.
+ * Linux requires an explicit background-mode choice: neither platform defaults
+ * nor old/imported Clear and Glass values can enable it. Fade is always zero.
+ * Hosts without any native surface resolve off without rewriting the book.
  */
 export const $translucency = computed([$translucencyBook, $appearance], (book, appearance) => {
   const state = resolveTranslucency(book, appearance, isWindowsPlatform())
+
+  if (BACKGROUND_TRANSPARENCY_SUPPORTED) {
+    return { ...state, intensity: state.mode === 'background' ? state.intensity : 0, fade: 0 }
+  }
 
   return TRANSLUCENCY_SUPPORTED ? state : { ...state, intensity: 0, fade: 0 }
 })
@@ -162,7 +178,12 @@ export function setTranslucencyFade(fade: number): void {
 export function setTranslucencyMode(mode: TranslucencyMode): void {
   $translucencyBook.set({
     ...$translucencyBook.get(),
-    mode: mode === 'glass' && GLASS_SUPPORTED ? 'glass' : 'clear'
+    mode:
+      mode === 'background' && BACKGROUND_TRANSPARENCY_SUPPORTED
+        ? 'background'
+        : mode === 'glass' && GLASS_SUPPORTED
+          ? 'glass'
+          : 'clear'
   })
 }
 
@@ -333,6 +354,7 @@ const applyGlassSurfaces = ({ intensity, mode, scope }: TranslucencyState): void
   const root = document.documentElement
   // Is the user's Glass setting live at all — the same answer in every window.
   const glassLive = mode === 'glass' && intensity > 0 && GLASS_SUPPORTED
+  const backgroundLive = mode === 'background' && intensity > 0 && BACKGROUND_TRANSPARENCY_SUPPORTED
   // ...and may THIS window's field surfaces be rewritten for it. Only real
   // chat windows: the HUD, pet overlay, quick entry and wake indicator are
   // transparent windows that own their backgrounds, and the surface rewrite
@@ -340,7 +362,7 @@ const applyGlassSurfaces = ({ intensity, mode, scope }: TranslucencyState): void
   // paints the app's field mix from `--translucency-glass-keep` and its native
   // frost is gated on the setting being on (see the `[data-hud-glass]` rules
   // and hudFrostFor) — which is why these are two flags and not one.
-  const glassOn = glassLive && isChatWindow()
+  const glassOn = (glassLive || backgroundLive) && isChatWindow()
   // Clear mode fades the whole window uniformly, so overlay text and the
   // covered transcript blend; styles.css strengthens the overlay scrim while
   // this attribute is present. Native opacity applies in every window kind, so
@@ -348,10 +370,11 @@ const applyGlassSurfaces = ({ intensity, mode, scope }: TranslucencyState): void
   const clearOn = mode === 'clear' && intensity > 0
 
   root.toggleAttribute('data-hermes-glass-on', glassLive)
+  root.toggleAttribute('data-hermes-background', backgroundLive && isChatWindow())
   root.toggleAttribute('data-hermes-glass', glassOn)
   root.toggleAttribute('data-hermes-clear', clearOn)
 
-  if (glassLive) {
+  if (glassLive || backgroundLive) {
     root.style.setProperty('--translucency-glass-keep', `${glassSurfaceKeep(intensity)}%`)
   } else {
     root.style.removeProperty('--translucency-glass-keep')
@@ -390,7 +413,10 @@ if (typeof window !== 'undefined') {
     storageTimer = null
     const book = $translucencyBook.get()
 
-    if (JSON.stringify(book) !== JSON.stringify(normalizeBook(readJson<unknown>(KEY), GLASS_SUPPORTED))) {
+    if (
+      JSON.stringify(book) !==
+      JSON.stringify(normalizeBook(readJson<unknown>(KEY), GLASS_SUPPORTED, BACKGROUND_TRANSPARENCY_SUPPORTED))
+    ) {
       writeJson(KEY, book)
     }
   }

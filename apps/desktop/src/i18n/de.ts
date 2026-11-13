@@ -1038,6 +1038,9 @@ export const deOverrides = {
       translucencyGlassDesc:
         'Mattglas: Der Desktop scheint als weicher Blur durch, während der Text scharf bleibt. Für hell und dunkel separat abgestimmt.',
       translucencyModeClear: 'Klar',
+      backgroundTransparencyTitle: 'Hintergrundtransparenz',
+      backgroundTransparencyDesc:
+        'Macht nur den Hintergrund durchsichtig; Text und Bedienelemente bleiben deckend. Erfordert einen unterstützenden Compositor. Unschärfe wird vom Linux-Compositor gesteuert.',
       translucencyModeGlass: 'Glas',
       translucencyTintTitle: 'Tönung',
       translucencyFadeTitle: 'Verblassen',

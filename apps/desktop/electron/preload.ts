@@ -32,6 +32,7 @@ import { unwrapExpectedNotFound } from './api-expected-404'
 contextBridge.exposeInMainWorld('hermesDesktop', {
   glassSupported: translucencySupport?.glass === true,
   translucencySupported: translucencySupport?.translucency === true,
+  backgroundTransparencySupported: translucencySupport?.background === true,
   // Launch-flag fact: the app was started with --local, so the renderer may
   // show the local-models surfaces. Static for the window's lifetime.
   localModelsEnabled: launchFlags?.localModels === true,

@@ -766,6 +766,8 @@ export const zhOverrides = {
       translucencyDesc: '让整个窗口（包括文字）透出桌面。',
       translucencyGlassDesc: '磨砂玻璃：桌面以柔和模糊透出，文字保持清晰。',
       translucencyModeClear: '透明',
+      backgroundTransparencyTitle: '背景透明度',
+      backgroundTransparencyDesc: '仅使背景透明，文字和控件保持不透明。需要合成器支持；模糊效果由 Linux 合成器控制。',
       translucencyModeGlass: '玻璃',
       translucencyTintTitle: '色调',
       translucencyFadeTitle: '淡出',

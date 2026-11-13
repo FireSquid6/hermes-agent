@@ -637,7 +637,11 @@
 
   /* ── Window glass (Settings → Appearance → Window Translucency: Glass) ──
      Set on <html> by store/translucency.ts; chat windows on a glass-capable
-     OS (macOS vibrancy, Windows 11 DWM acrylic/mica). The native material
+     OS (macOS vibrancy, Windows 11 DWM acrylic/mica), or explicitly opted-in
+     Linux background alpha. `data-hermes-glass` is the shared single-painter
+     CSS contract, not a claim of native frost; only `data-hermes-glass-on`
+     signals native glass, while Linux also carries `data-hermes-background`.
+     The native material
      composites BELOW the web contents; the page normally buries it under
      fully opaque surfaces.
 

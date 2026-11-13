@@ -337,6 +337,8 @@ export const zhHantSettings = {
       translucencyDesc: '讓整個視窗（包括文字）透出桌面。',
       translucencyGlassDesc: '霧面玻璃：桌面以柔和模糊透出，文字保持清晰。',
       translucencyModeClear: '透明',
+      backgroundTransparencyTitle: '背景透明度',
+      backgroundTransparencyDesc: '僅使背景透明，文字和控制項保持不透明。需要合成器支援；模糊效果由 Linux 合成器控制。',
       translucencyModeGlass: '玻璃',
       translucencyTintTitle: '色調',
       translucencyFadeTitle: '淡出',

@@ -47,6 +47,7 @@ import { $hideCodeDiffs, $toolViewMode, setHideCodeDiffs, setToolViewMode } from
 import { $toursEnabled, setToursEnabled } from '@/store/tours'
 import {
   $translucency,
+  BACKGROUND_TRANSPARENCY_SUPPORTED,
   beginTranslucencyPeek,
   endTranslucencyPeek,
   GLASS_IS_WINDOWS,
@@ -548,6 +549,27 @@ export function AppearanceSettings({ subpage }: AppearanceSettingsProps = {}) {
 
   const matchedScalePreset = matchUiScalePreset(zoomPercent)
 
+  // Background-only and native glass share tint and area, but not fade or frost.
+  const translucencyTintControl = (
+    <GlassRow label={a.translucencyTintTitle}>
+      <TranslucencySlider
+        label={a.translucencyTintTitle}
+        onChange={setTranslucency}
+        value={translucency.intensity}
+      />
+    </GlassRow>
+  )
+
+  const translucencyScopeControl = (
+    <GlassRow label={a.translucencyScopeTitle}>
+      <SegmentedControl
+        onChange={pickTranslucency(setTranslucencyScope)}
+        options={GLASS_SCOPES.map(scope => ({ id: scope, label: a.translucencyScope[scope] }))}
+        value={translucency.scope}
+      />
+    </GlassRow>
+  )
+
   return (
     <SettingsContent>
       <div>
@@ -790,9 +812,24 @@ export function AppearanceSettings({ subpage }: AppearanceSettingsProps = {}) {
             </div>
           )}
 
-          {/* Linux has neither half of this setting (see TRANSLUCENCY_SUPPORTED),
-              so the row is absent there rather than offering a dead lever. */}
-          {show('window-layout') && TRANSLUCENCY_SUPPORTED && (
+          {show('window-layout') && BACKGROUND_TRANSPARENCY_SUPPORTED && (
+            <ToggleRow
+              below={
+                translucency.mode === 'background' ? (
+                  <div className="mt-3 flex flex-col gap-2.5" data-translucency-peek-scope="">
+                    {translucencyTintControl}
+                    {translucencyScopeControl}
+                  </div>
+                ) : undefined
+              }
+              checked={translucency.mode === 'background'}
+              description={a.backgroundTransparencyDesc}
+              id={settingElementId(ids.translucency)}
+              label={a.backgroundTransparencyTitle}
+              onChange={on => setTranslucencyMode(on ? 'background' : 'clear')}
+            />
+          )}
+          {show('window-layout') && TRANSLUCENCY_SUPPORTED && !BACKGROUND_TRANSPARENCY_SUPPORTED && (
             <ListRow
               action={
                 <div
@@ -828,13 +865,7 @@ export function AppearanceSettings({ subpage }: AppearanceSettingsProps = {}) {
               below={
                 glassMode ? (
                   <div className="mt-3 flex flex-col gap-2.5" data-translucency-peek-scope="">
-                    <GlassRow label={a.translucencyTintTitle}>
-                      <TranslucencySlider
-                        label={a.translucencyTintTitle}
-                        onChange={setTranslucency}
-                        value={translucency.intensity}
-                      />
-                    </GlassRow>
+                    {translucencyTintControl}
                     <GlassRow label={a.translucencyFadeTitle}>
                       <TranslucencySlider
                         label={a.translucencyFadeTitle}
@@ -855,16 +886,7 @@ export function AppearanceSettings({ subpage }: AppearanceSettingsProps = {}) {
                         value={glassMaterialForPicker(translucency.material, GLASS_IS_WINDOWS)}
                       />
                     </GlassRow>
-                    <GlassRow label={a.translucencyScopeTitle}>
-                      <SegmentedControl
-                        onChange={pickTranslucency(setTranslucencyScope)}
-                        options={GLASS_SCOPES.map(scope => ({
-                          id: scope,
-                          label: a.translucencyScope[scope]
-                        }))}
-                        value={translucency.scope}
-                      />
-                    </GlassRow>
+                    {translucencyScopeControl}
                   </div>
                 ) : undefined
               }
