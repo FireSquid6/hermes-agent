@@ -343,6 +343,9 @@ export const arSettings = {
       translucencyDesc: 'إظهار سطح المكتب من خلال النافذة بالكامل، بما في ذلك النص.',
       translucencyGlassDesc: 'زجاج غير لامع: يظهر سطح المكتب كضبابية ناعمة بينما يبقى النص واضحًا.',
       translucencyModeClear: 'شفاف',
+      backgroundTransparencyTitle: 'شفافية الخلفية',
+      backgroundTransparencyDesc:
+        'تصبح الخلفية وحدها شفافة، ويبقى النص وعناصر التحكم معتمة. يتطلب ذلك دعم مدير التركيب. يتحكم مدير التركيب في Linux في التمويه.',
       translucencyModeGlass: 'زجاج',
       translucencyTintTitle: 'التلوين',
       translucencyFadeTitle: 'التلاشي',

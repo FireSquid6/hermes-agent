@@ -1003,6 +1003,9 @@ export const en: Translations = {
       translucencyGlassDesc:
         'Matte glass: the desktop shows through as a smooth blur while text stays sharp. Tuned separately for light and dark.',
       translucencyModeClear: 'Clear',
+      backgroundTransparencyTitle: 'Background transparency',
+      backgroundTransparencyDesc:
+        'Makes only the background see-through; text and controls stay opaque. Requires compositor support. Blur, if available, is controlled by your Linux compositor.',
       translucencyModeGlass: 'Glass',
       translucencyTintTitle: 'Tint',
       translucencyFadeTitle: 'Fade',

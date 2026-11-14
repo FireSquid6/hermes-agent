@@ -3,7 +3,7 @@ import { servedByHermesCloud } from '@/lib/hermes-cloud-host'
 import { hostHas } from '@/lib/host-capabilities'
 import { NATIVE_NOTIFICATION_KINDS } from '@/store/native-notifications'
 import { canUseQuickEntry } from '@/store/quick-entry'
-import { TRANSLUCENCY_SUPPORTED } from '@/store/translucency'
+import { BACKGROUND_TRANSPARENCY_SUPPORTED, TRANSLUCENCY_SUPPORTED } from '@/store/translucency'
 
 import type { AppearanceSubpageId } from './appearance-subpages'
 import { nativeHostOnly } from './other-subpages'
@@ -102,7 +102,19 @@ export const SETTINGS_MANIFEST = {
       copy: t => ({ label: t.settings.config.minimizeToTrayTitle, description: t.settings.config.minimizeToTrayDesc })
     },
     translucency: {
-      ...appearanceSetting('window-layout', ['opacity', 'transparent', 'glass', 'blur'], 'translucency'),
+      ...appearanceSetting(
+        'window-layout',
+        ['opacity', 'transparent', 'transparency', 'background', 'glass', 'blur'],
+        'translucency'
+      ),
+      copy: t => ({
+        label: BACKGROUND_TRANSPARENCY_SUPPORTED
+          ? t.settings.appearance.backgroundTransparencyTitle
+          : t.settings.appearance.translucencyTitle,
+        description: BACKGROUND_TRANSPARENCY_SUPPORTED
+          ? t.settings.appearance.backgroundTransparencyDesc
+          : t.settings.appearance.translucencyDesc
+      }),
       available: () => TRANSLUCENCY_SUPPORTED
     },
     backdrop: appearanceSetting('window-layout', ['background', 'blur'], 'backdrop'),

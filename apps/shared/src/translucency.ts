@@ -7,20 +7,22 @@
  *
  * - 'clear' — the main process maps the lever to native window opacity
  *   (`setOpacity`), so the whole window fades, text included. macOS + Windows
- *   only: Linux hides the setting, so it must never fade a Linux window, even
+ *   only: Linux never fades content, even
  *   though Electron 44 does honour `setOpacity` there.
  * - 'glass' — the window stays fully opaque at the native level and the
  *   renderer thins its page surfaces instead, letting a platform material
  *   read as a matte blur while text keeps full contrast. macOS rides
  *   `setVibrancy`; Windows 11 (22H2+) rides `setBackgroundMaterial`. Linux
  *   has no first-party desktop material, so glass is not offered there.
+ * - 'background' — Linux opt-in: transparent native backing, native opacity 1,
+ *   and the same single background painter as Glass. No native blur is claimed.
  *
  * The renderer owns the value and mirrors it to main over IPC; main persists it
  * so a cold launch can apply it at window creation, before the renderer reports
  * anything.
  */
 
-export type TranslucencyMode = 'clear' | 'glass'
+export type TranslucencyMode = 'clear' | 'glass' | 'background'
 
 /**
  * macOS vibrancy materials offered as glass "frost" levels, ordered sheer →
@@ -143,8 +145,8 @@ const DEFAULT_VALUES: Record<'mac' | 'windows', Record<Appearance, TranslucencyV
 }
 
 /**
- * The untouched values for an appearance on this platform. Linux never reaches
- * here — translucency is unsupported there, so nothing resolves.
+ * The untouched values for an appearance. Linux uses these tint/scope defaults
+ * only after explicitly selecting Background; otherwise its resolved tint is 0.
  */
 export function defaultTranslucencyValues(appearance: Appearance, isWindows: boolean): TranslucencyValues {
   return DEFAULT_VALUES[isWindows ? 'windows' : 'mac'][appearance]
@@ -195,12 +197,16 @@ export function clampIntensity(value: unknown): number {
 }
 
 /**
- * Whether this OS offers translucency at all. Glass needs a native material
- * Linux does not have, so Settings hides the row there — and a hidden setting
- * must also have no effect, so both processes resolve it to off on Linux.
+ * Whether this OS offers a see-through mode. Linux offers background alpha,
+ * not the native opacity/material capabilities macOS and Windows provide.
  */
 export function translucencySupportedOn(platform: string): boolean {
-  return platform === 'darwin' || platform === 'win32'
+  return platform === 'darwin' || platform === 'win32' || backgroundTransparencySupportedOn(platform)
+}
+
+/** Alpha-backed chat surfaces, not a native blur material or whole-window fade. */
+export function backgroundTransparencySupportedOn(platform: string): boolean {
+  return platform === 'linux'
 }
 
 /**
@@ -235,7 +241,16 @@ export function glassSupportedOn(platform: string, release = ''): boolean {
  * as clear all along, so it keeps rendering as clear. Flipping a window
  * someone already tuned is the one thing a default must not do.
  */
-export function normalizeMode(value: unknown, glassSupported: boolean, legacyIntensity = 0): TranslucencyMode {
+export function normalizeMode(
+  value: unknown,
+  glassSupported: boolean,
+  legacyIntensity = 0,
+  backgroundSupported = false
+): TranslucencyMode {
+  if (backgroundSupported) {
+    return value === 'background' ? 'background' : 'clear'
+  }
+
   if (!glassSupported) {
     return 'clear'
   }
@@ -258,14 +273,18 @@ export function normalizeScope(value: unknown): GlassScope {
 }
 
 /** Parse a persisted translucency.json / IPC payload into a safe state. */
-export function normalizeState(payload: unknown, glassSupported: boolean): TranslucencyState {
+export function normalizeState(
+  payload: unknown,
+  glassSupported: boolean,
+  backgroundSupported = false
+): TranslucencyState {
   const record = payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {}
   const intensity = clampIntensity(record.intensity)
 
   return {
-    intensity,
-    fade: clampIntensity(record.fade),
-    mode: normalizeMode(record.mode, glassSupported, intensity),
+    intensity: backgroundSupported && record.mode !== 'background' ? 0 : intensity,
+    fade: backgroundSupported ? 0 : clampIntensity(record.fade),
+    mode: normalizeMode(record.mode, glassSupported, intensity, backgroundSupported),
     material: normalizeMaterial(record.material),
     scope: normalizeScope(record.scope)
   }
@@ -325,7 +344,11 @@ function normalizeValues(payload: unknown): Partial<TranslucencyValues> {
  * The legacy clear rule rides along: a non-zero v1 intensity with no mode was
  * rendering as clear and keeps doing so.
  */
-export function normalizeBook(payload: unknown, glassSupported: boolean): TranslucencyBook {
+export function normalizeBook(
+  payload: unknown,
+  glassSupported: boolean,
+  backgroundSupported = false
+): TranslucencyBook {
   const record = payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {}
   const migrating = record.base === undefined && record.light === undefined && record.dark === undefined
 
@@ -333,7 +356,7 @@ export function normalizeBook(payload: unknown, glassSupported: boolean): Transl
   const legacyIntensity = migrating ? clampIntensity(record.intensity) : 0
 
   return {
-    mode: normalizeMode(record.mode, glassSupported, legacyIntensity),
+    mode: normalizeMode(record.mode, glassSupported, legacyIntensity, backgroundSupported),
     base,
     light: normalizeValues(migrating ? null : record.light),
     dark: normalizeValues(migrating ? null : record.dark)
@@ -401,6 +424,10 @@ function opacityRamp(lever: number): number {
  * at 0.9999. Off has to mean off.
  */
 export function windowOpacityFor(state: TranslucencyState): number {
+  if (state.mode === 'background') {
+    return 1
+  }
+
   if (state.mode !== 'glass') {
     return opacityRamp(state.intensity)
   }

@@ -548,6 +548,9 @@ export const jaOverrides = {
       translucencyDesc: 'テキストも含めウィンドウ全体を透過させてデスクトップを表示します。',
       translucencyGlassDesc: 'マットガラス: デスクトップが滑らかなぼかしとして透け、テキストは鮮明なまま。',
       translucencyModeClear: 'クリア',
+      backgroundTransparencyTitle: '背景の透明化',
+      backgroundTransparencyDesc:
+        '背景のみを透過し、文字と操作部品は不透明のままにします。対応するコンポジターが必要です。ぼかしは Linux のコンポジターで設定します。',
       translucencyModeGlass: 'ガラス',
       translucencyTintTitle: '色味',
       translucencyFadeTitle: 'フェード',

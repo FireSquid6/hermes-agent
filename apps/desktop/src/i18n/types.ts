@@ -819,6 +819,8 @@ export interface Translations extends NoticeTranslations {
       translucencyDesc: string
       translucencyGlassDesc: string
       translucencyModeClear: string
+      backgroundTransparencyTitle: string
+      backgroundTransparencyDesc: string
       translucencyModeGlass: string
       translucencyTintTitle: string
       translucencyFadeTitle: string

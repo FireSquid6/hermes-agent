@@ -2845,6 +2845,8 @@
     "settings.appearance.appActionsTitle",
     "settings.appearance.backdropDesc",
     "settings.appearance.backdropTitle",
+    "settings.appearance.backgroundTransparencyDesc",
+    "settings.appearance.backgroundTransparencyTitle",
     "settings.appearance.chatFontDesc",
     "settings.appearance.chatFontPlaceholder",
     "settings.appearance.chatFontPreview",

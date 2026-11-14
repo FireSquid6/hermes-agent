@@ -417,8 +417,10 @@ declare global {
       setNativeTheme?: (mode: 'dark' | 'light' | 'system') => void
       /** Main-process fact: this OS can back glass with a native material. */
       glassSupported?: boolean
-      /** Main-process fact: this OS can do any translucency at all (not Linux). */
+      /** Main-process fact: this OS offers a see-through window mode. */
       translucencySupported?: boolean
+      /** Alpha-backed chat surfaces, not native frost or whole-window opacity. */
+      backgroundTransparencySupported?: boolean
       /** Feature flag: the local-models UI is enabled. */
       localModelsEnabled?: boolean
       /** Dev-only launch flag (`--fresh-install`, unpackaged builds): onboarding treats this launch as a fresh install. */

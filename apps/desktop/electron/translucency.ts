@@ -43,6 +43,7 @@ export function applyWindowsBackdrop(
 
 export {
   backgroundMaterialFor,
+  backgroundTransparencySupportedOn,
   clampIntensity,
   DEFAULT_GLASS_MATERIAL,
   DEFAULT_GLASS_SCOPE,
@@ -97,8 +98,28 @@ export {
  * seconds of a fresh process were lost, including from 'ready-to-show' and
  * 'did-finish-load' — so creation must not rely on a post-creation fixup.
  */
-export function windowBackingOptions(state: TranslucencyState, themedColor: string): { backgroundColor?: string } {
+export function windowBackingOptions(
+  state: TranslucencyState,
+  themedColor: string,
+  platform = ''
+): { backgroundColor?: string; transparent?: boolean; opacity?: number } {
+  // Linux cannot switch an opaque native surface to alpha at runtime. Keep
+  // the backing transparent for its lifetime; the opaque page is the off state.
+  if (platform === 'linux') {
+    return { transparent: true, backgroundColor: '#00000000', opacity: 1 }
+  }
+
   return glassActive(state) ? {} : { backgroundColor: themedColor }
+}
+
+/** Linux's alpha backing is permanent; only the renderer paints its off state. */
+export function applyChatWindowBacking(
+  win: Pick<BrowserWindow, 'setBackgroundColor'>,
+  state: TranslucencyState,
+  themedColor: string,
+  platform: string
+): void {
+  win.setBackgroundColor(platform === 'linux' || glassActive(state) ? '#00000000' : themedColor)
 }
 
 /**
@@ -142,17 +163,11 @@ export function opacityNeedsSetting(next: number, current = 1): boolean {
 }
 
 /**
- * The native opacity a window should carry, given whether this platform can do
- * translucency at all.
- *
- * `translucencySupportedOn` drops the Settings row on everything but macOS and
- * Windows, on the strength of Electron documenting `setOpacity` as a no-op
- * elsewhere. On Linux it is not one: the X11 window carries the value as
- * `_NET_WM_WINDOW_OPACITY`, and a native Wayland surface composites the same
- * fade into the frame, so a Linux window really does render faded when handed
- * the value. The gate therefore belongs where the value reaches the window, not
- * only where the row is drawn, because a state persisted or imported from
- * another platform reaches this path without ever passing the Settings check.
+ * Native opacity, gated on native FADING support, not on whether any
+ * see-through mode is offered. Linux has background transparency but never
+ * native fading: Electron can honor setOpacity there, including for a stale
+ * Clear setting imported from another OS. Main passes false on Linux so even
+ * that state cannot attenuate content, and an already-faded window heals to 1.
  */
 export function nativeOpacityFor(state: TranslucencyState, supported: boolean): number {
   return supported ? windowOpacityFor(state) : 1
